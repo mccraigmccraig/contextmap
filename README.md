@@ -7,6 +7,13 @@ simulate a graph of objects with a nested map-like structure
 * maps can implement arbitrary protocols
 * maps carry associated Prismatic Schema
 * the graph of objects is initialised from a vanilla map
+* the `defcontext` macro is provided to define types for node
+* the `#cm/type` tagged literal refers to a type defined with `defcontext`
+* the `#cm/ref` tagged literal refers to a node by it's path in the nested structure
+* the `#cm/param` tagged literal refers to a param by it's path in the params map
+* `create-context` creates the structure from the definition
+* `update-params` and `update-param` can be used to update the parameter map - returning an updated version of the structure
+* `validate` runs a Prismatic Schema validation on a node
 
         (require '[contextmap :as cm])
         (require '[schema.core :as s])
