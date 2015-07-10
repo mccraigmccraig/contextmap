@@ -36,6 +36,7 @@
                   (eval `(new ~t ~root ~path ~this ~params))))
 
 (declare ctxmap-deref)
+(declare convert-to-context-template)
 
 ;; def an IContextMap type. arbitrary additional protocols can be given
 ;; in the body
@@ -47,18 +48,18 @@
               (ctxmap-deref this# k# (get focus*# k#))
               default-value#))
        (~'assoc [_# k# v#]
-                (let [new-root# (assoc-in root*# (conj path*# k#) v#)]
-                  (new ~nm new-root# path*# params*# (get-in new-root# path*#))))
+                (let [new-root# (assoc-in root*# (conj path*# k#) (convert-to-context-template v#))]
+                  (new ~nm new-root# path*# (get-in new-root# path*#) params*#)))
        (~'dissoc [_# k#]
                  (let [new-root# (assoc-in root*# path*# (dissoc (get-in root*# path*#) k#))]
-                   (new ~nm new-root# path*# params*# (get-in new-root# path*#))))
+                   (new ~nm new-root# path*# (get-in new-root# path*#) params*#)))
        (~'keys [_#]
              (keys focus*#))
        (~'meta [_#]
                (meta focus*#))
        (~'with-meta [_# mta#]
          (let [new-root# (assoc-in root*# path*# (with-meta (get-in root*# path*#) mta#))]
-           (new ~nm new-root# path*# params*# (get-in new-root# path*#))))
+           (new ~nm new-root# path*# (get-in new-root# path*#) params*#)))
 
        p/IContextMap
        (~'root [_#] root*#)
