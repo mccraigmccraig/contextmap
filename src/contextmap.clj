@@ -1,15 +1,14 @@
 (ns contextmap
   (:require
-   [potemkin :refer [def-map-type]]
+   [potemkin :refer [def-map-type import-vars]]
    [schema.core :as s]
    [contextmap.reader]
    [contextmap.protocols :as p]
    [contextmap.util :refer [resolve-class]])
-  (:import [contextmap.protocols IContextTemplate IContextMap IType IContextMapRef IRef IParam]))
+  (:import [contextmap.protocols]))
 
-(defprotocol IValidatable
-  (schema [this])
-  (validate [this]))
+(import-vars [contextmap.protocols IValidatable schema validate])
+(import-vars [contextmap.protocols IParameterisable set-params set-param])
 
 ;; a template for an IContextMap...
 ;; - t : the type of the instance
@@ -31,7 +30,7 @@
   (with-meta [_ mta]
     (ContextTemplate. t m mta))
 
-  IContextTemplate
+  p/IContextTemplate
   (context-type [_] t)
   (create-context [this root path params]
                   (eval `(new ~t ~root ~path ~this ~params))))
@@ -47,28 +46,34 @@
             (if (contains? focus*# k#)
               (ctxmap-deref this# k# (get focus*# k#))
               default-value#))
-       (~'assoc [_ k# v#]
+       (~'assoc [_# k# v#]
                 (let [new-root# (assoc-in root*# (conj path*# k#) v#)]
                   (new ~nm new-root# path*# params*# (get-in new-root# path*#))))
-       (~'dissoc [_ k#]
+       (~'dissoc [_# k#]
                  (let [new-root# (assoc-in root*# path*# (dissoc (get-in root*# path*#) k#))]
                    (new ~nm new-root# path*# params*# (get-in new-root# path*#))))
-       (~'keys [_]
+       (~'keys [_#]
              (keys focus*#))
-       (~'meta [_]
+       (~'meta [_#]
                (meta focus*#))
-       (~'with-meta [_ mta#]
+       (~'with-meta [_# mta#]
          (let [new-root# (assoc-in root*# path*# (with-meta (get-in root*# path*#) mta#))]
            (new ~nm new-root# path*# params*# (get-in new-root# path*#))))
 
-       contextmap.protocols.IContextMap
-       (~'root [_] root*#)
-       (~'path [_] path*#)
-       (~'params [_] params*#)
-       (~'focus [_] focus*#)
+       p/IContextMap
+       (~'root [_#] root*#)
+       (~'path [_#] path*#)
+       (~'params [_#] params*#)
+       (~'focus [_#] focus*#)
 
-       contextmap.IValidatable
-       (~'schema [_] ~sch)
+       p/IParameterisable
+       (~'set-params [this# new-params#]
+                     (new ~nm root*# path*# focus*# new-params#))
+       (~'set-param [this# param# val#]
+                    (new ~nm root*# path*# focus*# (assoc params*# param# val#)))
+
+       p/IValidatable
+       (~'schema [_#] ~sch)
        (~'validate [this#] (schema.core/validate ~sch this#))
 
        ~@body))
@@ -85,7 +90,7 @@
 
 (defn is-context-spec?
   [spec]
-  (some->> spec :type (instance? IType)))
+  (some->> spec :type (satisfies? p/IType)))
 
 (declare convert-to-context-template)
 
@@ -105,7 +110,7 @@
   [ctx-spec]
   (cond
 
-    (instance? IContextMapRef ctx-spec)
+    (satisfies? p/IContextMapRef ctx-spec)
     ctx-spec
 
     (is-context-spec? ctx-spec)
@@ -124,7 +129,7 @@
    with the ctx-template-or-val as the focus, otherwise return ctx-template-or-val"
   [ctxmap path ctx-template-or-val]
   (cond
-    (instance? IContextTemplate ctx-template-or-val)
+    (satisfies? p/IContextTemplate ctx-template-or-val)
     (p/create-context ctx-template-or-val (p/root ctxmap) path (p/params ctxmap))
 
     :else
@@ -136,11 +141,11 @@
    - otherwise return [path ref-or-val]"
   [ctxmap path ref-or-val]
   (cond
-    (instance? contextmap.protocols.IRef ref-or-val)
+    (satisfies? p/IRef ref-or-val)
     (let [rp (make-sequential (p/ref-name ref-or-val))]
       [rp (get-in (p/root ctxmap) rp)])
 
-    (instance? contextmap.protocols.IParam ref-or-val)
+    (satisfies? p/IParam ref-or-val)
     [nil (get-in (p/params ctxmap) (make-sequential (p/param-name ref-or-val)))]
 
     :else
@@ -164,12 +169,14 @@
   (print-context ctxmap writer))
 
 (prefer-method print-method contextmap.protocols.IContextMap clojure.lang.IPersistentMap)
+(prefer-method print-method contextmap.protocols.IContextMap java.util.Map)
 
 (defmethod print-dup contextmap.protocols.IContextMap
   [ctxmap writer]
   (print-context ctxmap writer))
 
 (prefer-method print-dup contextmap.protocols.IContextMap clojure.lang.IPersistentMap)
+(prefer-method print-dup contextmap.protocols.IContextMap java.util.Map)
 
 (defn create-context
   ([ctx-spec] (create-context ctx-spec {}))
