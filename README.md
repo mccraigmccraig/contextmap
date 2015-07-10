@@ -77,3 +77,13 @@ a persistent data structure which represents a graph of objects with nested map-
         ;; validation failure !
         (def h (cm/set-param f :boo "blah"))
         (cm/validate (:baz h)) ;; => fail!
+
+## implementation
+
+behind the scenes an IContextMap ha a tree of IContextTemplate objects, a focus object taken from that tree, the path of the focus object in the tree and a map of params
+
+a `get` operation returns either a plain value from the Map of the focus object (an attribute), or a new IContextMap instance of type specified by the :type key in the EDN spec and with updated focus object and path (following an edge to another object in the graph)
+
+an `assoc` operation converts the added value to an IContextTemplate if necessary, adds it to  the correct place in the tree of IContextTemplate objects (according the the path and key) and returns a new IContextMap instance of the same type, but with updated IContextTemplate tree and focus object
+
+a `dissoc` object removes a value from the IContextTemplate tree and returns a new IContextMap instance of the same type, with updated IContextTemplate tree and focus object
